@@ -138,8 +138,8 @@ uncertaintyCATS = result[:,0,0].std(axis=0)
 print('DOGS PREDICTION',predictionDOGS)
 print('DOGS UNCERTAINTY',uncertaintyDOGS)
 
-print('CATS PREDICTION',predictionDOGS)
-print('CATS UNCERTAINTY',uncertaintyDOGS)
+print('CATS PREDICTION',predictionCATS)
+print('CATS UNCERTAINTY',uncertaintyCATS)
 res2=result[:,0,1]
 res1=result[:,0,0]
 
