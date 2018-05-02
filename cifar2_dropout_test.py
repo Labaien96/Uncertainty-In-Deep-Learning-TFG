@@ -16,7 +16,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 import keras.backend as K
-
+import sklearn
+from sklearn import metrics
+from sklearn.metrics import roc_auc_score,roc_curve,auc
 def do_stuff():
     batch_size = 32
     num_classes = 2
@@ -84,7 +86,8 @@ def do_stuff():
     x_test = x_test.astype('float32')
     x_train /= 255
     x_test /= 255
-
+    x_train=x_train[:6000]
+    y_train=y_train[:6000]
     if not data_augmentation:
         print('Not using data augmentation.')
         model.fit(x_train, y_train,
@@ -134,25 +137,43 @@ def do_stuff():
     uncertaintyCATS = result[:,0,0].std(axis=0)
     modelUncertainty=(np.sum(uncertaintyDOGS)+np.sum(uncertaintyCATS))/(2000*2000)
 
-    print('DOGS PREDICTION',predictionDOGS)
-    print('CATS PREDICTION',predictionCATS)
-    print('MODEL UNCERTAINTY',modelUncertainty)
-    res2=result[:,0,1]
-    res1=result[:,0,0]
+    y_predict=np.zeros((2000,num_classes))
+    for i in range(2000):
+        y_predict[i,:]=result[:,i,:].mean(axis=0)
 
+    roc_auc_score(y_test, y_predict)
+    fpr, tpr, threshold = roc_curve(y_test, y_predict[:, 1])
+    roc_auc = auc(fpr, tpr)
+
+    # method I: plt
+    import matplotlib.pyplot as plt
+    plt.title('Receiver Operating Characteristic')
+    plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()
+
+    print('DOGS PREDICTION', predictionDOGS)
+    print('CATS PREDICTION', predictionCATS)
+    print('MODEL UNCERTAINTY', modelUncertainty)
+    res2 = result[:, 0, 1]
+    res1 = result[:, 0, 0]
     plt.close('all')
-    plt.hist(res2,30, density=True, facecolor='g', alpha=0.75)
+    plt.hist(res2, 30, density=True, facecolor='g', alpha=0.75)
     plt.xlabel('Score')
     plt.title('Histogram of dogs')
     plt.grid(True)
     plt.show()
 
-    plt.hist(res1,30, density=True, facecolor='g', alpha=0.75)
+    plt.hist(res1, 30, density=True, facecolor='g', alpha=0.75)
     plt.xlabel('Score')
     plt.title('Histogram of cats')
     plt.grid(True)
     plt.show()
-
 if __name__ == "__main__":
     gpu_device = "/gpu:1"
     if keras.backend.backend() == 'tensorflow':
