@@ -22,7 +22,7 @@ from sklearn.metrics import roc_auc_score,roc_curve,auc
 def do_stuff():
     batch_size = 32
     num_classes = 2
-    epochs = 50
+    epochs =5
     data_augmentation = True
     num_predictions = 20
     save_dir = os.path.join(os.getcwd(), 'saved_models')
@@ -131,34 +131,52 @@ def do_stuff():
     result=np.zeros((200,2000,num_classes))
     for i in tqdm(range(200)):
         result[i,:,:]=model.predict(x_test, verbose=0)
+
     predictionDOGS = result[:,0,1].mean(axis=0)
-    uncertaintyDOGS = result[:,0,1].std(axis=0)
     predictionCATS = result[:,0,0].mean(axis=0)
-    uncertaintyCATS = result[:,0,0].std(axis=0)
+
+    uncertaintyDOGS=np.zeros((2000))
+    uncertaintyCATS = np.zeros((2000))
+    for i in range(2000):
+        uncertaintyCATS[i]=result[:, i, 0].std(axis=0)
+        uncertaintyDOGS[i]=result[:, i, 1].std(axis=0)
+
+
     modelUncertainty=(np.sum(uncertaintyDOGS)+np.sum(uncertaintyCATS))/(2000*2000)
 
-    y_predict=np.zeros((2000,num_classes))
+
+    y_predict = np.zeros((2000, num_classes))
+
     for i in range(2000):
-        y_predict[i,:]=result[:,i,:].mean(axis=0)
+        y_predict[i, 0] = result[:, i, 0].mean(axis=0)
+        y_predict[i, 1] = result[:, i, 1].mean(axis=0)
 
-    roc_auc_score(y_test, y_predict)
-    fpr, tpr, threshold = roc_curve(y_test, y_predict[:, 1])
-    roc_auc = auc(fpr, tpr)
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
 
-    # method I: plt
-    import matplotlib.pyplot as plt
-    plt.title('Receiver Operating Characteristic')
-    plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
-    plt.legend(loc='lower right')
-    plt.plot([0, 1], [0, 1], 'r--')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1])
-    plt.ylabel('True Positive Rate')
+
+    for i in range(num_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_predict[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+
+    # Compute micro-average ROC curve and ROC area
+    fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_predict.ravel())
+    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+    plt.figure()
+    lw = 2
+    plt.plot(fpr[0], tpr[0], color='darkorange',
+             lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[0])
+    plt.plot([0, 1], [0, 1], color='green', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
-    plt.show()
+    plt.ylabel('True Positive Rate')
+    plt.title('Roc curve CIFAR2')
+    plt.legend(loc="lower right")
+    roc_plot=plt.show()
 
-    print('DOGS PREDICTION', predictionDOGS)
-    print('CATS PREDICTION', predictionCATS)
     print('MODEL UNCERTAINTY', modelUncertainty)
     res2 = result[:, 0, 1]
     res1 = result[:, 0, 0]
@@ -167,13 +185,14 @@ def do_stuff():
     plt.xlabel('Score')
     plt.title('Histogram of dogs')
     plt.grid(True)
-    plt.show()
+    dogs_plot=plt.show()
 
+    print("RES2= ",res2)
     plt.hist(res1, 30, density=True, facecolor='g', alpha=0.75)
     plt.xlabel('Score')
     plt.title('Histogram of cats')
     plt.grid(True)
-    plt.show()
+    cats_plot=plt.show()
 if __name__ == "__main__":
     gpu_device = "/gpu:1"
     if keras.backend.backend() == 'tensorflow':
